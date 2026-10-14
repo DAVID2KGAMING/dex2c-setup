@@ -1,0 +1,9 @@
+# Which methods dex2c should convert to native C.
+# One regex per line. Comment out (or remove) the line below to go back
+# to dex2c's own default (Activity.onCreate + its demo methods).
+#
+# Example: convert everything in your package
+# com\.david2k\..*->.*\(.*\)
+
+# Example: convert one specific method
+# com.david2k.dptdumper.core.Restorer->run(byte[] byte[] boolean)

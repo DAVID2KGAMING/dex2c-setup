@@ -1,0 +1,71 @@
+name: Dex2C Protect APK
+
+# Upload your APK to apk_in/ in this repo, push, then run this workflow
+# (Actions tab -> Dex2C Protect APK -> Run workflow). The protected APK
+# comes back as a downloadable artifact. Heavy step (NDK download + native
+# compile), so it can take 10-20 minutes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_name:
+        description: "File name inside apk_in/ to protect"
+        required: true
+
+jobs:
+  protect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 11
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Clone dex2c
+        run: git clone https://github.com/codehasan/dex2c ~/dex2c
+
+      - name: Install Python deps
+        run: pip install -r ~/dex2c/requirements.txt
+
+      - name: Download apktool
+        run: |
+          wget -O ~/dex2c/tools/apktool.jar \
+            https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar
+
+      - name: Install Android NDK r25c
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+          unzip -q android-ndk-r25c-linux.zip
+          echo "NDK_DIR=$PWD/android-ndk-r25c" >> "$GITHUB_ENV"
+
+      - name: Configure dcc.cfg
+        run: |
+          cd ~/dex2c
+          python3 - <<PY
+          import re
+          p = "dcc.cfg"
+          s = open(p).read()
+          s = re.sub(r'ndk_dir\s*=.*', f'ndk_dir = ${{{{ env.NDK_DIR }}}}', s)
+          open(p, "w").write(s)
+          PY
+
+      - name: Copy filter and APK
+        run: |
+          cp filters/filter.txt ~/dex2c/filter.txt || true
+          cp "apk_in/${{ github.event.inputs.apk_name }}" ~/dex2c/
+
+      - name: Run dex2c
+        run: |
+          cd ~/dex2c
+          python3 dcc.py "${{ github.event.inputs.apk_name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dex2c-protected-apk
+          path: ~/dex2c/*unsigned*.apk
