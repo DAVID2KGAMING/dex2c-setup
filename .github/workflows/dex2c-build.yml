@@ -28,14 +28,14 @@ jobs:
           python-version: "3.11"
 
       - name: Clone dex2c
-        run: git clone https://github.com/codehasan/dex2c ~/dex2c
+        run: git clone https://github.com/codehasan/dex2c dex2c
 
       - name: Install Python deps
-        run: pip install -r ~/dex2c/requirements.txt
+        run: pip install -r dex2c/requirements.txt
 
       - name: Download apktool
         run: |
-          wget -O ~/dex2c/tools/apktool.jar \
+          wget -O dex2c/tools/apktool.jar \
             https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar
 
       - name: Install Android NDK r25c
@@ -46,26 +46,23 @@ jobs:
 
       - name: Configure dcc.cfg
         run: |
-          cd ~/dex2c
-          python3 - <<PY
-          import re
-          p = "dcc.cfg"
-          s = open(p).read()
-          s = re.sub(r'ndk_dir\s*=.*', f'ndk_dir = ${{{{ env.NDK_DIR }}}}', s)
-          open(p, "w").write(s)
-          PY
+          cd dex2c
+          sed -i "s|^ndk_dir[[:space:]]*=.*|ndk_dir = ${NDK_DIR}|" dcc.cfg
+          grep ndk_dir dcc.cfg
 
       - name: Copy filter and APK
         run: |
-          cp filters/filter.txt ~/dex2c/filter.txt || true
-          cp "apk_in/${{ github.event.inputs.apk_name }}" ~/dex2c/
+          if [ -f filters/filter.txt ]; then
+            cp filters/filter.txt dex2c/filter.txt
+          fi
+          cp "apk_in/${{ github.event.inputs.apk_name }}" dex2c/
 
       - name: Run dex2c
         run: |
-          cd ~/dex2c
+          cd dex2c
           python3 dcc.py "${{ github.event.inputs.apk_name }}"
 
       - uses: actions/upload-artifact@v4
         with:
           name: dex2c-protected-apk
-          path: ~/dex2c/*unsigned*.apk
+          path: dex2c/*unsigned*.apk
